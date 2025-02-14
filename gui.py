@@ -360,11 +360,132 @@ class CompMathApp:
 
         return x, max_iter, log, errors  # If no convergence
 
+# ...existing code...
+
     def task4_power_method(self):
-        self.create_task_window("Power Method for Eigenvalues")
+        task_window = tk.Toplevel(self.root)
+        task_window.title("Power Method for Eigenvalues")
+        self.center_window(task_window)
+
+        ttk.Label(task_window, text="Power Method for Eigenvalues", font=("Arial", 12)).pack()
+
+        ttk.Label(task_window, text="Enter matrix A (comma-separated rows):", font=("Arial", 10)).pack()
+        A_entry = tk.Entry(task_window, font=("Arial", 12))
+        A_entry.insert(0, "8,4,2;4,8,4;2,4,8")  # Default example
+        A_entry.pack()
+
+        ttk.Label(task_window, text="Enter initial vector x0 (comma-separated):", font=("Arial", 10)).pack()
+        x0_entry = tk.Entry(task_window, font=("Arial", 12))
+        x0_entry.insert(0, "1,1,1")  # Default initial vector
+        x0_entry.pack()
+
+        result_frame = tk.Frame(task_window)
+        result_frame.pack()
+
+        def compute():
+            try:
+                A = np.array([list(map(float, row.split(','))) for row in A_entry.get().split(';')])
+                x0 = np.array(list(map(float, x0_entry.get().split(','))))
+
+                eigenvalue, eigenvector, iterations = self.power_method(A, x0)
+
+                result_text = f"Eigenvalue: {eigenvalue}\nEigenvector: {eigenvector}\nIterations: {iterations}"
+                ttk.Label(result_frame, text=result_text, font=("Arial", 12)).pack()
+
+                # Plot the convergence of the eigenvector
+                fig, ax = plt.subplots(figsize=(5, 3))
+                ax.plot(range(len(eigenvector)), eigenvector, marker='o', linestyle='-', color='b', label="Eigenvector")
+                ax.set_xlabel("Iteration")
+                ax.set_ylabel("Eigenvector Components")
+                ax.legend()
+                ax.grid()
+
+                canvas = FigureCanvasTkAgg(fig, master=result_frame)
+                canvas.draw()
+                canvas.get_tk_widget().pack()
+
+            except ValueError:
+                messagebox.showerror("Input Error", "Please enter valid numerical values.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Unexpected error: {str(e)}")
+
+        ttk.Button(task_window, text="Compute", command=compute).pack(pady=5)
+
+    def power_method(self, A, x0, tol=1e-6, max_iter=100):
+        x = x0
+        for i in range(max_iter):
+            x_new = np.dot(A, x)
+            x_new_norm = np.linalg.norm(x_new)
+            x_new = x_new / x_new_norm
+
+            if np.linalg.norm(x_new - x) < tol:
+                eigenvalue = np.dot(x_new, np.dot(A, x_new))
+                return eigenvalue, x_new, i + 1
+
+            x = x_new
+
+        eigenvalue = np.dot(x, np.dot(A, x))
+        return eigenvalue, x, max_iter
 
     def task5_curve_fitting(self):
-        self.create_task_window("Exponential Curve Fitting")
+        task_window = tk.Toplevel(self.root)
+        task_window.title("Exponential Curve Fitting")
+        self.center_window(task_window)
+
+        ttk.Label(task_window, text="Exponential Curve Fitting", font=("Arial", 12)).pack()
+
+        ttk.Label(task_window, text="Enter x values (comma-separated):", font=("Arial", 10)).pack()
+        x_entry = tk.Entry(task_window, font=("Arial", 12))
+        x_entry.insert(0, "0.5,1.5,2.5,3.5")  # Default example
+        x_entry.pack()
+
+        ttk.Label(task_window, text="Enter y values (comma-separated):", font=("Arial", 10)).pack()
+        y_entry = tk.Entry(task_window, font=("Arial", 12))
+        y_entry.insert(0, "2,6,18,54")  # Default example
+        y_entry.pack()
+
+        result_frame = tk.Frame(task_window)
+        result_frame.pack()
+
+        def compute():
+            try:
+                x = np.array(list(map(float, x_entry.get().split(','))))
+                y = np.array(list(map(float, y_entry.get().split(','))))
+
+                popt, pcov = self.exponential_curve_fitting(x, y)
+                a, b = popt
+
+                result_text = f"Fitted Parameters: a = {a}, b = {b}"
+                ttk.Label(result_frame, text=result_text, font=("Arial", 12)).pack()
+
+                # Plot the data and the fitted curve
+                fig, ax = plt.subplots(figsize=(5, 3))
+                ax.scatter(x, y, label='Data', color='b')
+                ax.plot(x, a * np.exp(b * x), label='Fitted Curve', color='r')
+                ax.legend()
+                ax.grid()
+
+                canvas = FigureCanvasTkAgg(fig, master=result_frame)
+                canvas.draw()
+                canvas.get_tk_widget().pack()
+
+            except ValueError:
+                messagebox.showerror("Input Error", "Please enter valid numerical values.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Unexpected error: {str(e)}")
+
+        ttk.Button(task_window, text="Compute", command=compute).pack(pady=5)
+
+    def exponential_curve_fitting(self, x, y):
+        from scipy.optimize import curve_fit
+
+        def model(x, a, b):
+            return a * np.exp(b * x)
+
+        popt, pcov = curve_fit(model, x, y)
+        return popt, pcov
+
+# ...existing code...
 
     def task6_cubic_spline(self):
         self.create_task_window("Cubic Spline Interpolation")
