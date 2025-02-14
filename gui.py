@@ -38,7 +38,7 @@ class CompMathApp:
             ("Graphical Method & Absolute Error", self.task1),
             ("Comparison of Root-Finding Methods", self.task2),
             ("Relaxation Method", self.task3),
-            ("Power Method for Eigenvalues", self.task4_power_method),
+            ("Power Method for Eigenvalues", self.task4),
             ("Exponential Curve Fitting", self.task5_curve_fitting),
             ("Cubic Spline Interpolation", self.task6_cubic_spline),
             ("Modified Euler’s Method", self.task7_euler),
@@ -139,6 +139,12 @@ class CompMathApp:
         b_entry = tk.Entry(task_window, font=("Arial", 12))
         b_entry.pack()
 
+        result_label = ttk.Label(task_window, text="", font=("Arial", 12))
+        result_label.pack()
+
+        canvas_frame = ttk.Frame(task_window)
+        canvas_frame.pack()
+
         def compute():
             try:
                 a = float(a_entry.get())
@@ -152,31 +158,16 @@ class CompMathApp:
                 df = lambda x: 1 / x - 0.1
                 x0 = (a + b) / 2
 
-                # Checl for root
+                # Проверка на корень
                 if f(a) * f(b) > 0:
                     messagebox.showerror("No Root",
                                          "Function values at a and b have the same sign. No guarantee of a root.")
                     return
 
                 root_fp, iter_fp = self.false_position_method(f, a, b)
-
-                # Validate result of False Position
-                if root_fp is not None:
-                    print(f"False Position Method found root: {root_fp:.6f} in {iter_fp} iterations")
-
-                # Checck for errors with df(x)
-                if abs(df(x0)) < 1e-6:
-                    print("Warning: Derivative is too small, Newton's method may fail.")
-
-                # Calling Newton method
                 root_nr, iter_nr = self.newton_method(f, df, x0)
 
-                # Result of Newton-Raphson
-                if root_nr is None:
-                    print("Newton-Raphson Method failed.")
-                else:
-                    print(f"Newton-Raphson Method found root: {root_nr:.6f} in {iter_nr} iterations")
-
+                # Формирование текста результата
                 if root_fp is None and root_nr is None:
                     result_text = "Failed to find root using both methods."
                 elif root_fp is None:
@@ -191,9 +182,14 @@ class CompMathApp:
                                    f"Newton-Raphson Method: Root = {root_nr:.6f}, Iterations = {iter_nr}\n"
                                    f"Relative Error = {rel_error:.6f}%")
 
-                ttk.Label(task_window, text=result_text, font=("Arial", 12)).pack()
+                # Обновление текста в result_label вместо создания нового Label
+                result_label.config(text=result_text)
 
-                # Plot the graph
+                # Очистка предыдущего графика, если есть
+                for widget in canvas_frame.winfo_children():
+                    widget.destroy()
+
+                # Построение нового графика
                 x_vals = np.linspace(a, b, 100)
                 y_vals = f(x_vals)
 
@@ -207,8 +203,7 @@ class CompMathApp:
                 ax.legend()
                 ax.grid()
 
-                # Draw a graph on window
-                canvas = FigureCanvasTkAgg(fig, master=task_window)
+                canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
                 canvas.draw()
                 canvas.get_tk_widget().pack()
 
@@ -289,6 +284,14 @@ class CompMathApp:
         omega_entry.insert(0, "0.9")  # Default value
         omega_entry.pack()
 
+        # Label for result
+        result_label = ttk.Label(task_window, text="", font=("Arial", 12))
+        result_label.pack()
+
+        # Frame for graph
+        canvas_frame = ttk.Frame(task_window)
+        canvas_frame.pack()
+
         def compute():
             try:
                 # Read input
@@ -307,15 +310,16 @@ class CompMathApp:
                 # Solve with relaxation method
                 solution, iterations, log, errors = self.relaxation_method(A, b, omega)
 
-                # Display results
                 if iterations < 200:
                     result_text = f"Solution: {solution}\nIterations: {iterations}"
                 else:
                     result_text = "Method did not converge within 100 iterations."
 
-                ttk.Label(task_window, text=result_text, font=("Arial", 12)).pack()
+                result_label.config(text=result_text)
 
-                # Plot convergence graph
+                for widget in canvas_frame.winfo_children():
+                    widget.destroy()
+
                 fig, ax = plt.subplots(figsize=(5, 3))
                 ax.plot(range(len(errors)), errors, marker='o', linestyle='-', color='b', label="Error per iteration")
                 ax.set_yscale("log")  # Log scale for better visualization
@@ -324,7 +328,7 @@ class CompMathApp:
                 ax.legend()
                 ax.grid()
 
-                canvas = FigureCanvasTkAgg(fig, master=task_window)
+                canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
                 canvas.draw()
                 canvas.get_tk_widget().pack()
 
@@ -336,9 +340,8 @@ class CompMathApp:
         ttk.Button(task_window, text="Compute", command=compute).pack(pady=5)
 
     def relaxation_method(self, A, b, omega=0.9, tol=1e-6, max_iter=100):
-        """ Метод релаксации (SOR) для решения системы уравнений. """
         n = len(b)
-        x = np.zeros(n)  # Начальное приближение
+        x = np.zeros(n)
         log = ""
         errors = []
 
@@ -360,54 +363,95 @@ class CompMathApp:
 
         return x, max_iter, log, errors  # If no convergence
 
-# ...existing code...
-
-    def task4_power_method(self):
+    def task4(self):
         task_window = tk.Toplevel(self.root)
         task_window.title("Power Method for Eigenvalues")
-        self.center_window(task_window)
+        self.center_window(task_window, 800, 600)
 
         ttk.Label(task_window, text="Power Method for Eigenvalues", font=("Arial", 12)).pack()
 
-        ttk.Label(task_window, text="Enter matrix A (comma-separated rows):", font=("Arial", 10)).pack()
-        A_entry = tk.Entry(task_window, font=("Arial", 12))
-        A_entry.insert(0, "8,4,2;4,8,4;2,4,8")  # Default example
-        A_entry.pack()
+        ttk.Label(task_window, text="Enter matrix size (n x n):", font=("Arial", 10)).pack()
+        size_entry = tk.Entry(task_window, font=("Arial", 12), width=5, justify="center")
+        size_entry.insert(0, "3")  # Default
+        size_entry.pack()
 
+        matrix_frame = ttk.Frame(task_window)
+        matrix_frame.pack()
+
+        def create_matrix_input(n):
+            for widget in matrix_frame.winfo_children():
+                widget.destroy()
+
+            self.matrix_entries = []
+            for i in range(n):
+                row_entries = []
+                for j in range(n):
+                    entry = tk.Entry(matrix_frame, width=5, font=("Arial", 12), justify="center")
+                    entry.grid(row=i, column=j, padx=2, pady=2)
+                    entry.insert(0, str(1 if i == j else 0))
+                    row_entries.append(entry)
+                self.matrix_entries.append(row_entries)
+
+        def get_matrix():
+            try:
+                return np.array([[float(entry.get()) for entry in row] for row in self.matrix_entries])
+            except ValueError:
+                messagebox.showerror("Input Error", "Invalid matrix values.")
+                return None
+
+        # Button for input
+        def update_matrix():
+            try:
+                n = int(size_entry.get())
+                create_matrix_input(n)
+            except ValueError:
+                messagebox.showerror("Input Error", "Invalid size.")
+
+        ttk.Button(task_window, text="Set Matrix Size", command=update_matrix).pack(pady=5)
+        create_matrix_input(3)
+
+        # Initia; vector
         ttk.Label(task_window, text="Enter initial vector x0 (comma-separated):", font=("Arial", 10)).pack()
         x0_entry = tk.Entry(task_window, font=("Arial", 12))
-        x0_entry.insert(0, "1,1,1")  # Default initial vector
+        x0_entry.insert(0, "1,1,1")  # default
         x0_entry.pack()
 
-        result_frame = tk.Frame(task_window)
-        result_frame.pack()
+        result_label = ttk.Label(task_window, text="", font=("Arial", 12))
+        result_label.pack()
+
+        canvas_frame = ttk.Frame(task_window)
+        canvas_frame.pack()
 
         def compute():
+            A = get_matrix()
+            if A is None:
+                return
+
             try:
-                A = np.array([list(map(float, row.split(','))) for row in A_entry.get().split(';')])
                 x0 = np.array(list(map(float, x0_entry.get().split(','))))
-
-                eigenvalue, eigenvector, iterations = self.power_method(A, x0)
-
-                result_text = f"Eigenvalue: {eigenvalue}\nEigenvector: {eigenvector}\nIterations: {iterations}"
-                ttk.Label(result_frame, text=result_text, font=("Arial", 12)).pack()
-
-                # Plot the convergence of the eigenvector
-                fig, ax = plt.subplots(figsize=(5, 3))
-                ax.plot(range(len(eigenvector)), eigenvector, marker='o', linestyle='-', color='b', label="Eigenvector")
-                ax.set_xlabel("Iteration")
-                ax.set_ylabel("Eigenvector Components")
-                ax.legend()
-                ax.grid()
-
-                canvas = FigureCanvasTkAgg(fig, master=result_frame)
-                canvas.draw()
-                canvas.get_tk_widget().pack()
-
+                if len(x0) != A.shape[0]:
+                    raise ValueError("Vector size must match matrix size.")
             except ValueError:
-                messagebox.showerror("Input Error", "Please enter valid numerical values.")
-            except Exception as e:
-                messagebox.showerror("Error", f"Unexpected error: {str(e)}")
+                messagebox.showerror("Input Error", "Invalid initial vector.")
+                return
+
+            eigenvalue, eigenvector, iterations = self.power_method(A, x0)
+            result_text = f"Eigenvalue: {eigenvalue:.6f}\nEigenvector: {eigenvector}\nIterations: {iterations}"
+            result_label.config(text=result_text)
+
+            for widget in canvas_frame.winfo_children():
+                widget.destroy()
+
+            fig, ax = plt.subplots(figsize=(5, 3))
+            ax.plot(range(len(eigenvector)), eigenvector, marker='o', linestyle='-', color='b', label="Eigenvector")
+            ax.set_xlabel("Component Index")
+            ax.set_ylabel("Eigenvector Components")
+            ax.legend()
+            ax.grid()
+
+            canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack()
 
         ttk.Button(task_window, text="Compute", command=compute).pack(pady=5)
 
