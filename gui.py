@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.optimize import root_scalar
 from sympy import symbols, solve
+from tkinter import simpledialog
+from scipy import interpolate as interp
 
 
 class CompMathApp:
@@ -40,9 +42,9 @@ class CompMathApp:
             ("Relaxation Method", self.task3),
             ("Power Method for Eigenvalues", self.task4_power_method),
             ("Exponential Curve Fitting", self.task5_curve_fitting),
-            ("Cubic Spline Interpolation", self.task6_cubic_spline),
-            ("Modified Euler’s Method", self.task7_euler),
-            ("Weddle’s Rule Integration", self.task8_weddle)
+            ("Cubic Spline Interpolation", self.task6),
+            ("Modified Euler’s Method", self.task7),
+            ("Weddle’s Rule Integration", self.task8)
         ]
 
         for text, command in tasks:
@@ -487,14 +489,183 @@ class CompMathApp:
 
 # ...existing code...
 
-    def task6_cubic_spline(self):
-        self.create_task_window("Cubic Spline Interpolation")
+    def task6(self):
+        task_window = tk.Toplevel(self.root)
+        task_window.title("Cubic Spline Interpolation")
+        self.center_window(task_window)
 
-    def task7_euler(self):
-        self.create_task_window("Modified Euler’s Method")
+        # Исходные точки для интерполяции
+        x_data = np.array([0.5, 1.5, 2.5, 3.5])
+        y_data = np.array([0.25, 0.75, 2.25, 6.25])
 
-    def task8_weddle(self):
-        self.create_task_window("Weddle’s Rule Integration")
+        # Интерполяция с использованием кубического сплайна
+        spline = interp.CubicSpline(x_data, y_data)
+
+        # Запрашиваем у пользователя точки для оценки
+        ttk.Label(task_window, text="Enter two x values for estimation (comma-separated):", font=("Arial", 10)).pack()
+        x_input = tk.Entry(task_window, font=("Arial", 12))
+        x_input.pack()
+
+        def compute():
+            try:
+                # Получаем два значения x от пользователя
+                x_values = np.array([float(x) for x in x_input.get().split(',')])
+                
+                if len(x_values) != 2:
+                    messagebox.showerror("Input Error", "Please enter exactly two x values.")
+                    return
+                
+                # Вычисляем значения y для введённых x
+                y_values = spline(x_values)
+                result_text = "\n".join([f"x = {x:.2f}, y = {y:.4f}" for x, y in zip(x_values, y_values)])
+
+                ttk.Label(task_window, text=result_text, font=("Arial", 12)).pack()
+
+                # График интерполяции
+                x_range = np.linspace(0.5, 3.5, 100)
+                y_range = spline(x_range)
+
+                plt.plot(x_range, y_range, label='Cubic Spline')
+                plt.scatter(x_data, y_data, color='red', label='Data Points')
+                plt.xlabel("x")
+                plt.ylabel("y")
+                plt.legend()
+                plt.grid()
+
+                plt.show()
+
+            except ValueError:
+                messagebox.showerror("Input Error", "Please enter valid x values.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Unexpected error: {str(e)}")
+
+        ttk.Button(task_window, text="Compute", command=compute).pack(pady=5)
+
+
+
+    def task7(self):
+        task_window = tk.Toplevel(self.root)
+        task_window.title("Modified Euler's Method")
+        self.center_window(task_window)
+
+        # Уравнение dy/dx = sin(x) - y
+        def f(x, y):
+            return np.sin(x) - y
+
+        # Модифицированный метод Эйлера
+        def modified_euler(f, y0, x0, x_end, h):
+            x = x0
+            y = y0
+            x_values = [x]  # Список для значений x
+            y_values = [y]  # Список для значений y
+            while x < x_end:
+                y_predict = y + h * f(x, y)
+                y_corrected = y + h * (f(x + h, y_predict) + f(x, y)) / 2
+                x += h
+                y = y_corrected
+                x_values.append(x)
+                y_values.append(y)
+            return x_values, y_values
+
+        # Ввод параметров
+        ttk.Label(task_window, text="Enter the step size (h):", font=("Arial", 10)).pack()
+        h_entry = tk.Entry(task_window, font=("Arial", 12))
+        h_entry.pack()
+
+        def compute():
+            try:
+                h = float(h_entry.get())  # Получаем значение шага
+                if h <= 0:
+                    messagebox.showerror("Input Error", "Step size must be positive.")  # Ошибка если шаг отрицателен
+                    return
+
+                # Вычисление x и y для графика
+                x_values, y_values = modified_euler(f, y0=1, x0=0, x_end=0.4, h=h)
+                result_text = f"y(0.4) = {y_values[-1]:.6f}"  # Форматируем результат
+
+                ttk.Label(task_window, text=result_text, font=("Arial", 12)).pack()
+
+                # График
+                plt.plot(x_values, y_values, label="y(x) - Modified Euler's")
+                plt.xlabel("x")
+                plt.ylabel("y")
+                plt.title("Modified Euler's Method")
+                plt.grid(True)
+                plt.legend()
+                plt.show()
+
+            except ValueError:
+                messagebox.showerror("Input Error", "Please enter a valid step size.")  # Ошибка при неправильном вводе
+            except Exception as e:
+                messagebox.showerror("Error", f"Unexpected error: {str(e)}")
+
+        ttk.Button(task_window, text="Compute", command=compute).pack(pady=5)
+
+    def task8(self):
+        task_window = tk.Toplevel(self.root)
+        task_window.title("Weddle's Rule")
+        self.center_window(task_window)
+
+        ttk.Label(task_window, text="Enter the number of subintervals (n):", font=("Arial", 10)).pack()
+        n_entry = tk.Entry(task_window, font=("Arial", 12))
+        n_entry.pack()
+
+        def weddle_rule(f, a, b, n):
+            if n % 6 != 0:
+                n += 6 - (n % 6)  # Приводим n к ближайшему, кратному 6
+            h = (b - a) / n
+            integral = 0
+            for i in range(0, n, 6):
+                x0 = a + i * h
+                x1, x2, x3, x4, x5, x6 = [x0 + j * h for j in range(1, 7)]
+                
+                integral += (3 * h / 10) * (
+                    f(x0) + 5 * f(x1) + f(x2) + 6 * f(x3) + f(x4) + 5 * f(x5) + f(x6)
+                )
+            return integral
+
+        def f(x):
+            return 1 / (1 + x**2)
+
+        def compute():
+            try:
+                n = int(n_entry.get())
+                if n < 6:
+                    messagebox.showerror("Input Error", "Number of subintervals must be at least 6.")
+                    return
+
+                result = weddle_rule(f, a=0, b=6, n=n)
+                result_text = f"Integral = {result:.6f}"
+                ttk.Label(task_window, text=result_text, font=("Arial", 12)).pack()
+
+                # График функции
+                x_vals = np.linspace(0, 6, 100)
+                y_vals = f(x_vals)
+
+                plt.figure(figsize=(8, 5))
+                plt.plot(x_vals, y_vals, label=r'$f(x) = \frac{1}{1+x^2}$', color='blue')
+                plt.fill_between(x_vals, y_vals, alpha=0.3, color='cyan', label="Area under curve")
+
+                # Отмечаем узлы Weddle
+                x_nodes = np.linspace(0, 6, n + 1)
+                y_nodes = f(x_nodes)
+                plt.scatter(x_nodes, y_nodes, color='red', label='Weddle Nodes')
+
+                plt.xlabel("x")
+                plt.ylabel("f(x)")
+                plt.title("Weddle’s Rule Approximation of Integral")
+                plt.legend()
+                plt.grid(True)
+
+                plt.show()
+
+            except ValueError:
+                messagebox.showerror("Input Error", "Please enter a valid number of subintervals.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Unexpected error: {str(e)}")
+
+        ttk.Button(task_window, text="Compute", command=compute).pack(pady=5)
+
 
     def create_task_window(self, title):
         task_window = tk.Toplevel(self.root)
