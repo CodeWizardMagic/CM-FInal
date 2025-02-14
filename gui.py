@@ -36,8 +36,8 @@ class CompMathApp:
 
         tasks = [
             ("Graphical Method & Absolute Error", self.task1),
-            ("Comparison of Root-Finding Methods", self.task2_root_finding),
-            ("Relaxation Method", self.task3_relaxation),
+            ("Comparison of Root-Finding Methods", self.task2),
+            ("Relaxation Method", self.task3),
             ("Power Method for Eigenvalues", self.task4_power_method),
             ("Exponential Curve Fitting", self.task5_curve_fitting),
             ("Cubic Spline Interpolation", self.task6_cubic_spline),
@@ -125,11 +125,240 @@ class CompMathApp:
         # Button for next values of x
         ttk.Button(task_window, text="Plot Graph & Compute Root", command=compute).pack(pady=5)
 
-    def task2_root_finding(self):
-        self.create_task_window("Comparison of Root-Finding Methods")
+    def task2(self):
+        task_window = tk.Toplevel(self.root)
+        task_window.title("Comparison of Root-Finding Methods")
+        self.center_window(task_window)
 
-    def task3_relaxation(self):
-        self.create_task_window("Relaxation Method")
+        ttk.Label(task_window, text="Finding root of f(x) = ln(x) - x/10", font=("Arial", 12)).pack()
+
+        ttk.Label(task_window, text="Enter interval [a, b]:", font=("Arial", 10)).pack()
+
+        a_entry = tk.Entry(task_window, font=("Arial", 12))
+        a_entry.pack()
+        b_entry = tk.Entry(task_window, font=("Arial", 12))
+        b_entry.pack()
+
+        def compute():
+            try:
+                a = float(a_entry.get())
+                b = float(b_entry.get())
+
+                if a <= 0 or b <= 0 or a >= b:
+                    messagebox.showerror("Input Error", "Enter a valid interval: 0 < a < b")
+                    return
+
+                f = lambda x: np.log(x) - x / 10
+                df = lambda x: 1 / x - 0.1
+                x0 = (a + b) / 2
+
+                # Checl for root
+                if f(a) * f(b) > 0:
+                    messagebox.showerror("No Root",
+                                         "Function values at a and b have the same sign. No guarantee of a root.")
+                    return
+
+                root_fp, iter_fp = self.false_position_method(f, a, b)
+
+                # Validate result of False Position
+                if root_fp is not None:
+                    print(f"False Position Method found root: {root_fp:.6f} in {iter_fp} iterations")
+
+                # Checck for errors with df(x)
+                if abs(df(x0)) < 1e-6:
+                    print("Warning: Derivative is too small, Newton's method may fail.")
+
+                # Calling Newton method
+                root_nr, iter_nr = self.newton_method(f, df, x0)
+
+                # Result of Newton-Raphson
+                if root_nr is None:
+                    print("Newton-Raphson Method failed.")
+                else:
+                    print(f"Newton-Raphson Method found root: {root_nr:.6f} in {iter_nr} iterations")
+
+                if root_fp is None and root_nr is None:
+                    result_text = "Failed to find root using both methods."
+                elif root_fp is None:
+                    result_text = (f"Newton-Raphson Method: Root = {root_nr:.6f}, Iterations = {iter_nr}\n"
+                                   f"False Position Method failed.")
+                elif root_nr is None:
+                    result_text = (f"False Position Method: Root = {root_fp:.6f}, Iterations = {iter_fp}\n"
+                                   f"Newton-Raphson Method failed.")
+                else:
+                    rel_error = abs(root_fp - root_nr) / abs(root_nr) * 100
+                    result_text = (f"False Position Method: Root = {root_fp:.6f}, Iterations = {iter_fp}\n"
+                                   f"Newton-Raphson Method: Root = {root_nr:.6f}, Iterations = {iter_nr}\n"
+                                   f"Relative Error = {rel_error:.6f}%")
+
+                ttk.Label(task_window, text=result_text, font=("Arial", 12)).pack()
+
+                # Plot the graph
+                x_vals = np.linspace(a, b, 100)
+                y_vals = f(x_vals)
+
+                fig, ax = plt.subplots(figsize=(5, 3))
+                ax.plot(x_vals, y_vals, label='f(x) = ln(x) - x/10', color='b')
+                ax.axhline(0, color='black', linewidth=0.5)
+                if root_fp:
+                    ax.plot(root_fp, f(root_fp), 'ro', label='False Position Root')
+                if root_nr:
+                    ax.plot(root_nr, f(root_nr), 'go', label='Newton-Raphson Root')
+                ax.legend()
+                ax.grid()
+
+                # Draw a graph on window
+                canvas = FigureCanvasTkAgg(fig, master=task_window)
+                canvas.draw()
+                canvas.get_tk_widget().pack()
+
+            except ValueError:
+                messagebox.showerror("Input Error", "Please enter valid numerical values.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Unexpected error: {str(e)}")
+
+        ttk.Button(task_window, text="Compute", command=compute).pack(pady=5)
+
+    def false_position_method(self, f, a, b, tol=1e-6, max_iter=100):
+
+        fa, fb = f(a), f(b)
+
+        # Ensure the initial interval contains a root
+        if fa * fb > 0:
+            print("False Position Method failed: No sign change in the interval.")
+            return None, 0
+
+        for i in range(max_iter):
+            # Compute the new approximation
+            c = (a * fb - b * fa) / (fb - fa)
+            fc = f(c)
+
+            # Check for convergence
+            if abs(fc) < tol:
+                return c, i + 1
+
+            # Update interval based on sign of f(c)
+            if fa * fc < 0:
+                b, fb = c, fc  # Root lies in [a, c], update b
+            else:
+                a, fa = c, fc  # Root lies in [c, b], update a
+
+        print("False Position Method did not converge within the maximum number of iterations.")
+        return None, max_iter
+
+    def newton_method(self, f, df, x0, tol=1e-6, max_iter=100):
+        for i in range(max_iter):
+            fx = f(x0)
+            dfx = df(x0)
+
+            # Check if the derivative is too small
+            if abs(dfx) < 1e-8:
+                print(f"Newton's method failed: derivative too small at iteration {i}, x = {x0}")
+                return None, i
+
+            # Check if the method has converged
+            if abs(fx) < tol:
+                return x0, i + 1
+
+            # Compute the next approximation
+            x_next = x0 - fx / dfx
+
+            # Limit the step size
+            if abs(x_next - x0) > 1:
+                x_next = x0 - np.sign(fx / dfx) * 1  # Restricting step size
+
+            # Ensure x remains in the valid domain
+            if x_next <= 0:
+                print(f"Newton's method failed: x went out of domain (x = {x_next}) at iteration {i}")
+                return None, i
+
+            x0 = x_next  # Update x
+
+        print("Newton's method did not converge within the maximum number of iterations.")
+        return None, max_iter
+
+    def task3(self):
+        task_window = tk.Toplevel(self.root)
+        task_window.title("Relaxation Method (SOR)")
+        self.center_window(task_window)
+
+        ttk.Label(task_window, text="Solving system using Relaxation Method (SOR)", font=("Arial", 12)).pack()
+
+        ttk.Label(task_window, text="Enter relaxation parameter (ω):", font=("Arial", 10)).pack()
+        omega_entry = tk.Entry(task_window, font=("Arial", 12))
+        omega_entry.insert(0, "0.9")  # Default value
+        omega_entry.pack()
+
+        def compute():
+            try:
+                # Read input
+                omega = float(omega_entry.get())
+
+                if not (0 < omega < 2):
+                    messagebox.showerror("Input Error", "Enter a valid ω in range (0, 2).")
+                    return
+
+                # Define system
+                A = np.array([[1, 1, 1],
+                              [2, -3, 4],
+                              [3, 4, 5]], dtype=float)
+                b = np.array([9, 13, 40], dtype=float)
+
+                # Solve with relaxation method
+                solution, iterations, log, errors = self.relaxation_method(A, b, omega)
+
+                # Display results
+                if iterations < 200:
+                    result_text = f"Solution: {solution}\nIterations: {iterations}"
+                else:
+                    result_text = "Method did not converge within 100 iterations."
+
+                ttk.Label(task_window, text=result_text, font=("Arial", 12)).pack()
+
+                # Plot convergence graph
+                fig, ax = plt.subplots(figsize=(5, 3))
+                ax.plot(range(len(errors)), errors, marker='o', linestyle='-', color='b', label="Error per iteration")
+                ax.set_yscale("log")  # Log scale for better visualization
+                ax.set_xlabel("Iteration")
+                ax.set_ylabel("Error (||x_new - x_old||)")
+                ax.legend()
+                ax.grid()
+
+                canvas = FigureCanvasTkAgg(fig, master=task_window)
+                canvas.draw()
+                canvas.get_tk_widget().pack()
+
+            except ValueError:
+                messagebox.showerror("Input Error", "Please enter a valid numerical value for ω.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Unexpected error: {str(e)}")
+
+        ttk.Button(task_window, text="Compute", command=compute).pack(pady=5)
+
+    def relaxation_method(self, A, b, omega=0.9, tol=1e-6, max_iter=100):
+        """ Метод релаксации (SOR) для решения системы уравнений. """
+        n = len(b)
+        x = np.zeros(n)  # Начальное приближение
+        log = ""
+        errors = []
+
+        for iter_count in range(max_iter):
+            x_new = np.copy(x)
+
+            for i in range(n):
+                sigma = sum(A[i, j] * x_new[j] for j in range(n) if j != i)
+                x_new[i] = (1 - omega) * x[i] + (omega / A[i, i]) * (b[i] - sigma)
+
+            error = np.linalg.norm(x_new - x, ord=np.inf)
+            errors.append(error)
+            log += f"Iter {iter_count + 1}: {x_new}, Error: {error:.2e}\n"
+
+            if error < tol:
+                return x_new, iter_count + 1, log, errors
+
+            x = x_new
+
+        return x, max_iter, log, errors  # If no convergence
 
     def task4_power_method(self):
         self.create_task_window("Power Method for Eigenvalues")
